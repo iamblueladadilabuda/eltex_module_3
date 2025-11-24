@@ -1,0 +1,7 @@
+﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(531,5): warning MSB8028: промежуточный каталог (x64\Debug\) содержит файлы, которые используются совместно с другим проектом (2.1.vcxproj).  Это может привести к ошибкам очистки и перестроения.
+  main.c
+D:\Университет\Eltex\Модуль №3\task_3\2.1\main.c(6,11): warning C4013: open: нет определения; предполагается "extern" с возвратом типа "int"
+D:\Университет\Eltex\Модуль №3\task_3\2.1\main.c(20,19): warning C4013: read: нет определения; предполагается "extern" с возвратом типа "int"
+D:\Университет\Eltex\Модуль №3\task_3\2.1\main.c(30,6): warning C4013: lseek: нет определения; предполагается "extern" с возвратом типа "int"
+D:\Университет\Eltex\Модуль №3\task_3\2.1\main.c(33,3): warning C4013: close: нет определения; предполагается "extern" с возвратом типа "int"
+  2.1.vcxproj -> D:\Университет\Eltex\Модуль №3\task_3\x64\Debug\task_3.exe
