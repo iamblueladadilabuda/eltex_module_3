@@ -21,22 +21,6 @@ socklen_t client_size;
 struct sockaddr_in cliaddr;
 uint16_t src_port;
 
-// Структура для IPv4
-typedef struct Ip_Hdr 
-{
-    unsigned char   ihl : 4, // Длина заголовка (в словах по 32 бита)
-                    version : 4; // Версия IP
-    unsigned char   tos; // Тип обслуживания
-    unsigned short  tot_len; // Общая длина пакета
-    unsigned short  id; // Уникальный идентификатор пакета
-    unsigned short  frag_off; // Нет фрагментов
-    unsigned char   ttl; // Время жизни
-    unsigned char   protocol; // Транспортный протокол (UDP)
-    unsigned short  check; // Контрольная сумма будет рассчитана позже
-    unsigned long   saddr; // Источник
-    unsigned long   daddr; // Получатель
-}IP;
-
 // Структура для UDP
 typedef struct Udp_Hdr 
 {
@@ -107,8 +91,7 @@ void* Send_Message(void* arg)
     dst_addr.sin_family = AF_INET;
     dst_addr.sin_port = htons(DST_PORT);
 
-    struct ip *iph = (struct ip*)packet;
-    struct udphdr *udph = (struct udphdr *)(packet + sizeof(struct ip));
+    struct udphdr *udph = (struct udphdr *)(packet + 20);
 
     while (1) 
     {
@@ -119,26 +102,14 @@ void* Send_Message(void* arg)
         }
 
         size_t data_len = strlen(sendline);
-        size_t packet_len = sizeof(struct ip) + sizeof(struct udphdr) + data_len;
-
-        iph->ip_hl = 5;
-        iph->ip_v = 4;
-        iph->ip_tos = 0;
-        iph->ip_len = htons(packet_len);
-        iph->ip_id = rand();
-        iph->ip_off = 0;
-        iph->ip_ttl = 64;
-        iph->ip_p = IPPROTO_UDP;
-        iph->ip_sum = 0;
-        iph->ip_src.s_addr = inet_addr("127.0.0.1"); 
-        iph->ip_dst.s_addr = inet_addr("127.0.0.1"); 
+        size_t packet_len = 20 + sizeof(struct udphdr) + data_len;
 
         udph->uh_sport = htons(src_port);
         udph->uh_dport = htons(DST_PORT);
         udph->uh_ulen = htons(data_len + sizeof(struct udphdr));
         udph->uh_sum = 0;
 
-        memcpy(packet + sizeof(struct ip) + sizeof(struct udphdr), sendline, data_len);
+        memcpy(packet + 20 + sizeof(struct udphdr), sendline, data_len);
 
         if (sendto(sockfd, packet, packet_len, 0, (struct sockaddr *)&dst_addr, sizeof(dst_addr)) != (ssize_t)packet_len) 
         {
