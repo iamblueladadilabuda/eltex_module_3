@@ -33,6 +33,10 @@ typedef struct Task_Data
 
 struct Driver** drivers = NULL; // Массив указателей на драйверы
 int drivers_count; // Количество драйверов
+struct pollfd fds[MAX_DRIVERS + 1];
+int nfds = 2;
+int fd_write[MAX_DRIVERS];
+int i_write;
 
 // Обработчик ошибок
 void Error(const char* text)
@@ -64,6 +68,7 @@ Driver* Find_Driver(pid_t pid)
     {
         if (drivers[i]->pid == pid)
         {
+            i_write = i;
             return drivers[i];
         }
     }
@@ -82,10 +87,14 @@ pid_t Create_Driver()
     {
         // Код дочернего процесса
         mkfifo(FIFONAME, 0666); // Именованный канал
-        int fd_write = open(FIFONAME, O_WRONLY); // Для записи
-        if (fd_write == -1) Error("open fd_write");
-        dup2(fd_write, STDOUT_FILENO);
-        close(fd_write);
+        fd_write[nfds - 2] = open(FIFONAME, O_WRONLY); // Для записи
+        if (fd_write[nfds - 2] == -1) Error("open fd_write");
+        dup2(fd_write[nfds - 2], STDOUT_FILENO);
+        
+        fds[nfds].fd = STDOUT_FILENO;
+        fds[nfds].events = POLLIN;
+        nfds++;
+        
         exit(0);
     } 
     else if (new_driver->pid < 0) 
@@ -118,8 +127,15 @@ void* Send_Task(void* arg)
     
     // Логика задачи для драйвера
     driver->task_timer = task_timer;
-    sleep(task_timer);
-    driver->task_timer = 0;
+    char command[MAX_LINE];
+    snprintf(command, sizeof(command), "driver <%d> working %ds\n\n", driver->pid, task_timer);
+    ssize_t written = write(fd_write[i_write], command, strlen(command));
+    
+    while (driver->task_timer != 0)
+    {
+        sleep(1);
+        driver->task_timer -= 1;
+    }
     
     free(data); // Освобождаем память, выделенную под аргументы
     pthread_exit(NULL);
@@ -171,9 +187,6 @@ int main()
     char buffer[MAX_LINE];
     int fd_read;
     
-    struct pollfd fds[2];
-    int nfds = 2;
-    
     // Проверяем создание fifo-канала
     if ((mkfifo(FIFONAME, 0666) != 0) && (errno != EEXIST)) 
         Error("mkfifo");
@@ -182,7 +195,7 @@ int main()
     fd_read = open(FIFONAME, O_RDONLY | O_NONBLOCK); 
     if (fd_read == -1) Error("open fd_read");
     
-    // Подготовили первый элемент массива для прослушивающего сокета
+    // Подготовили первый элемент массива
     fds[0].fd = fd_read;
     fds[0].events = POLLIN; 
     
@@ -205,6 +218,24 @@ int main()
         }
         
         // Проверка fifo
+        for (int i = 2; i < nfds; i++)
+        {
+            if (fds[i].revents & POLLOUT) 
+            {
+                fds[i].revents = 0; 
+            }
+            else if (fds[i].revents & POLLERR) 
+            {
+                printf("Ошибка дескриптора %d\n", fds[i].fd);
+                fds[i].revents = 0;
+            }
+            else if (fds[i].revents & POLLHUP) 
+            {
+                printf("Соединение разорвано для дескриптора %d\n", fds[i].fd);
+                fds[i].revents = 0;
+            }
+        }
+        
         if (fds[0].revents & POLLIN) 
         {
             // Чтение результата из канала
@@ -249,8 +280,7 @@ int main()
                     printf("<%s>: Unknown PID driver\n", commands[1]);
                 }
                 else if (Get_Status(driver) == 0)
-                {
-                    printf("driver <%d> working %ds\n", atoi(commands[1]), atoi(commands[2]));
+                {                    
                     Task_Data* data = malloc(sizeof(Task_Data)); // Выделяем память под аргумент
                     if (!data) Error("malloc");
 
@@ -293,6 +323,7 @@ int main()
     }
     
     close(fd_read);
+    for (int i = 0; i < nfds; i++) close(fd_write[i]);
     unlink(FIFONAME);
     
     // Освободить память
@@ -304,4 +335,3 @@ int main()
     
     return 0;
 }
-
