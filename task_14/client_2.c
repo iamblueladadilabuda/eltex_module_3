@@ -104,8 +104,8 @@ void* Send_Message(void* arg)
         size_t data_len = strlen(sendline);
         size_t packet_len = 20 + sizeof(struct udphdr) + data_len;
 
-        udph->uh_sport = htons(src_port);
-        udph->uh_dport = htons(DST_PORT);
+        udph->uh_sport = htons(DST_PORT);
+        udph->uh_dport = htons(src_port);
         udph->uh_ulen = htons(data_len + sizeof(struct udphdr));
         udph->uh_sum = 0;
 
@@ -149,9 +149,6 @@ int main()
     if (sockfd < 0) Error("socket");
 
     fcntl(sockfd, F_SETFL, O_NONBLOCK);
-    
-    if (bind(sockfd, (struct sockaddr *)&cliaddr, sizeof(cliaddr)) < 0) 
-        Error("bind");
 
     printf("Ожидание входящих пакетов...\n");
 
