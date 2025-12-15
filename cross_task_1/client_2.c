@@ -99,6 +99,8 @@ void Change_Message(const char *buf, size_t received_bytes)
     src_port = ntohs(udph->source);
     if (src_port == DST_PORT) return;
     
+    printf("Всего клиентов: %d\n", client_count);
+    
     if (strcmp(prev_message, payload) != 0 || 
         strcmp(prev_message, payload) == 0 && src_port != prev_src_port)
     {
@@ -107,12 +109,18 @@ void Change_Message(const char *buf, size_t received_bytes)
         
         printf("Сообщение: ");
         fwrite(payload, payload_len, 1, stdout);
-        
+
         int flag = 0;
         for (int i = 0; i < client_count; i++)
         {
             if (messages[i].src == src_port)
             {
+                if (strcmp("exit", payload))
+                {
+                    messages[i] = messages[client_count];
+                    client_count--;
+                    return;
+                }
                 flag = 1;
                 
                 messages[i].count += 1;
@@ -164,6 +172,9 @@ int main()
             Change_Message(buf, received_bytes);
         }
     }
+
+    return 0;
+}
 
     return 0;
 }
